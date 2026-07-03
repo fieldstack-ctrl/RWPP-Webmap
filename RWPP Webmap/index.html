@@ -1,0 +1,2160 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="data/NGSCCatagorisedWeedsto26326_2.js"></script>
+        <script src="data/NGSCWorkAreato26326_3.js"></script>
+        <script src="data/NGSCWeeds2632026Onwardscatagorised_4.js"></script>
+        <script src="data/NGSCWorkArea2632026Onwards_5.js"></script>
+        <script src="data/ARCCRWPP2526WorkArea_6.js"></script>
+        <script src="data/ARCCRWPP2526WeedData_7.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+            highlightLayer.openPopup();
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-37.92743426306817,141.47998762073863],[-36.67341557955494,144.15126111057194]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/qgis2web/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_GoogleSatelliteHybrid_0');
+        map.getPane('pane_GoogleSatelliteHybrid_0').style.zIndex = 400;
+        var layer_GoogleSatelliteHybrid_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatelliteHybrid_0',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+        });
+        layer_GoogleSatelliteHybrid_0;
+        map.addLayer(layer_GoogleSatelliteHybrid_0);
+        function pop_opendataplatformad_lga_area_polygon_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ufi'] !== null ? autolinker.link(String(feature.properties['ufi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pfi'] !== null ? autolinker.link(String(feature.properties['pfi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['feature_type_code'] !== null ? autolinker.link(String(feature.properties['feature_type_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['lga_code'] !== null ? autolinker.link(String(feature.properties['lga_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['official_name'] !== null ? autolinker.link(String(feature.properties['official_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['state'] !== null ? autolinker.link(String(feature.properties['state']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['abs_lga_code'] !== null ? autolinker.link(String(feature.properties['abs_lga_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['named_feature_id'] !== null ? autolinker.link(String(feature.properties['named_feature_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['feature_quality_id'] !== null ? autolinker.link(String(feature.properties['feature_quality_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['task_id'] !== null ? autolinker.link(String(feature.properties['task_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['create_date_pfi'] !== null ? autolinker.link(String(feature.properties['create_date_pfi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['superceded_pfi'] !== null ? autolinker.link(String(feature.properties['superceded_pfi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['create_date_ufi'] !== null ? autolinker.link(String(feature.properties['create_date_ufi']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['label_use_code'] !== null ? autolinker.link(String(feature.properties['label_use_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_opendataplatformad_lga_area_polygon_1_0() {
+            return {
+                pane: 'pane_opendataplatformad_lga_area_polygon_1',
+                opacity: 1,
+                color: 'rgba(53,121,177,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_opendataplatformad_lga_area_polygon_1');
+        map.getPane('pane_opendataplatformad_lga_area_polygon_1').style.zIndex = 401;
+        map.getPane('pane_opendataplatformad_lga_area_polygon_1').style['mix-blend-mode'] = 'normal';
+        var layer_opendataplatformad_lga_area_polygon_1 = L.geoJson(null, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_opendataplatformad_lga_area_polygon_1',
+            layerName: 'layer_opendataplatformad_lga_area_polygon_1',
+            style: style_opendataplatformad_lga_area_polygon_1_0,
+            pane: 'pane_opendataplatformad_lga_area_polygon_1',
+            onEachFeature: pop_opendataplatformad_lga_area_polygon_1
+        });
+        function getopendataplatformad_lga_area_polygon_1Json(geojson) {
+            layer_opendataplatformad_lga_area_polygon_1.addData(geojson);
+        };
+        bounds_group.addLayer(layer_opendataplatformad_lga_area_polygon_1);
+        map.addLayer(layer_opendataplatformad_lga_area_polygon_1);
+        function pop_NGSCCatagorisedWeedsto26326_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_child_record_id'] !== null ? autolinker.link(String(feature.properties['_child_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_id'] !== null ? autolinker.link(String(feature.properties['_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_parent_id'] !== null ? autolinker.link(String(feature.properties['_parent_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_title'] !== null ? autolinker.link(String(feature.properties['_title']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_index'] !== null ? autolinker.link(String(feature.properties['_index']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_latitude'] !== null ? autolinker.link(String(feature.properties['_latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_longitude'] !== null ? autolinker.link(String(feature.properties['_longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_created_duration'] !== null ? autolinker.link(String(feature.properties['_created_duration']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pp_priority_weed'] !== null ? autolinker.link(String(feature.properties['pp_priority_weed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['road_name'] !== null ? autolinker.link(String(feature.properties['road_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['side_of_the_road_weed_is_on'] !== null ? autolinker.link(String(feature.properties['side_of_the_road_weed_is_on']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['cross_street_a'] !== null ? autolinker.link(String(feature.properties['cross_street_a']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['cross_street_b'] !== null ? autolinker.link(String(feature.properties['cross_street_b']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['length_meters'] !== null ? autolinker.link(String(feature.properties['length_meters']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['width_meters'] !== null ? autolinker.link(String(feature.properties['width_meters']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_species_specific_area'] !== null ? autolinker.link(String(feature.properties['weed_species_specific_area']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['latitude'] !== null ? autolinker.link(String(feature.properties['latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['longitude'] !== null ? autolinker.link(String(feature.properties['longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['utm_zone'] !== null ? autolinker.link(String(feature.properties['utm_zone']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['utm_easting'] !== null ? autolinker.link(String(feature.properties['utm_easting']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['utm_northing'] !== null ? autolinker.link(String(feature.properties['utm_northing']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_treated'] !== null ? autolinker.link(String(feature.properties['weed_workarea_treated']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_road'] !== null ? autolinker.link(String(feature.properties['weed_workarea_road']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_roadside'] !== null ? autolinker.link(String(feature.properties['weed_workarea_roadside']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_crossstreet_a'] !== null ? autolinker.link(String(feature.properties['weed_workarea_crossstreet_a']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_crossstreet_b'] !== null ? autolinker.link(String(feature.properties['weed_workarea_crossstreet_b']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_length'] !== null ? autolinker.link(String(feature.properties['weed_workarea_length']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_width'] !== null ? autolinker.link(String(feature.properties['weed_workarea_width']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_area'] !== null ? autolinker.link(String(feature.properties['weed_workarea_area']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['New Density'] !== null ? autolinker.link(String(feature.properties['New Density']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_NGSCCatagorisedWeedsto26326_2_0(feature) {
+            switch(String(feature.properties['New Density'])) {
+                default:
+                    return {
+                pane: 'pane_NGSCCatagorisedWeedsto26326_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_NGSCCatagorisedWeedsto26326_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 10% and 30% of ground cover':
+                    return {
+                pane: 'pane_NGSCCatagorisedWeedsto26326_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,207,211,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 30 and 60% of ground cover':
+                    return {
+                pane: 'pane_NGSCCatagorisedWeedsto26326_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,142,152,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 60 and 90% of ground cover':
+                    return {
+                pane: 'pane_NGSCCatagorisedWeedsto26326_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,93,106,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Monoculture':
+                    return {
+                pane: 'pane_NGSCCatagorisedWeedsto26326_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,0,22,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sparse individual plants':
+                    return {
+                pane: 'pane_NGSCCatagorisedWeedsto26326_2',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_NGSCCatagorisedWeedsto26326_2');
+        map.getPane('pane_NGSCCatagorisedWeedsto26326_2').style.zIndex = 402;
+        map.getPane('pane_NGSCCatagorisedWeedsto26326_2').style['mix-blend-mode'] = 'normal';
+        var layer_NGSCCatagorisedWeedsto26326_2 = new L.geoJson(json_NGSCCatagorisedWeedsto26326_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_NGSCCatagorisedWeedsto26326_2',
+            layerName: 'layer_NGSCCatagorisedWeedsto26326_2',
+            pane: 'pane_NGSCCatagorisedWeedsto26326_2',
+            onEachFeature: pop_NGSCCatagorisedWeedsto26326_2,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_NGSCCatagorisedWeedsto26326_2_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_NGSCCatagorisedWeedsto26326_2);
+        map.addLayer(layer_NGSCCatagorisedWeedsto26326_2);
+        function pop_NGSCWorkAreato26326_3(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_id'] !== null ? autolinker.link(String(feature.properties['_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_title'] !== null ? autolinker.link(String(feature.properties['_title']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_server_updated_at'] !== null ? autolinker.link(String(feature.properties['_server_updated_at']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_by'] !== null ? autolinker.link(String(feature.properties['_updated_by']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_latitude'] !== null ? autolinker.link(String(feature.properties['_latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_longitude'] !== null ? autolinker.link(String(feature.properties['_longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['are_you_lead_mapper'] !== null ? autolinker.link(String(feature.properties['are_you_lead_mapper']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['is_this_another_discrete_site_for_the_same_clientproject_yo'] !== null ? autolinker.link(String(feature.properties['is_this_another_discrete_site_for_the_same_clientproject_yo']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['link_to_lead_mapper_record'] !== null ? autolinker.link(String(feature.properties['link_to_lead_mapper_record']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['your_name'] !== null ? autolinker.link(String(feature.properties['your_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['date'] !== null ? autolinker.link(String(feature.properties['date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['is_todays_work_part_of_a_larger_umbrella_project'] !== null ? autolinker.link(String(feature.properties['is_todays_work_part_of_a_larger_umbrella_project']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['project_lookup_pp_project'] !== null ? autolinker.link(String(feature.properties['project_lookup_pp_project']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['project_lookup_landcare_project'] !== null ? autolinker.link(String(feature.properties['project_lookup_landcare_project']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['linked_project_name'] !== null ? autolinker.link(String(feature.properties['linked_project_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['linked_vlg_name'] !== null ? autolinker.link(String(feature.properties['linked_vlg_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['linked_project_code'] !== null ? autolinker.link(String(feature.properties['linked_project_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_lookup'] !== null ? autolinker.link(String(feature.properties['client_lookup']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_business_name'] !== null ? autolinker.link(String(feature.properties['client_business_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_main_contact'] !== null ? autolinker.link(String(feature.properties['client_main_contact']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_main_contact_phone'] !== null ? autolinker.link(String(feature.properties['client_main_contact_phone']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_site_representative_if_different_from_main_contact'] !== null ? autolinker.link(String(feature.properties['client_site_representative_if_different_from_main_contact']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_site_representative_phone_if_different_from_main_con'] !== null ? autolinker.link(String(feature.properties['client_site_representative_phone_if_different_from_main_con']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['site_lookup'] !== null ? autolinker.link(String(feature.properties['site_lookup']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['site_name'] !== null ? autolinker.link(String(feature.properties['site_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weather_observations_am'] !== null ? autolinker.link(String(feature.properties['weather_observations_am']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['start_time'] !== null ? autolinker.link(String(feature.properties['start_time']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['other_staff_on_site'] !== null ? autolinker.link(String(feature.properties['other_staff_on_site']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['activity_type'] !== null ? autolinker.link(String(feature.properties['activity_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['is_this_roadsides_weed_work'] !== null ? autolinker.link(String(feature.properties['is_this_roadsides_weed_work']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['description_of_site_and_planned_activities'] !== null ? autolinker.link(String(feature.properties['description_of_site_and_planned_activities']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['animal_pest_control_activity_used'] !== null ? autolinker.link(String(feature.properties['animal_pest_control_activity_used']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['what_is_the_purpose_of_todays_rabbit_visit'] !== null ? autolinker.link(String(feature.properties['what_is_the_purpose_of_todays_rabbit_visit']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['photos_of_rabbit_work'] !== null ? autolinker.link(String(feature.properties['photos_of_rabbit_work']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['link_to_previous_rabbit_visit'] !== null ? autolinker.link(String(feature.properties['link_to_previous_rabbit_visit']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['chemical_used_animal'] !== null ? autolinker.link(String(feature.properties['chemical_used_animal']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['rabbit_site_feature'] !== null ? autolinker.link(String(feature.properties['rabbit_site_feature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['what_is_the_purpose_of_todays_weed_visit'] !== null ? autolinker.link(String(feature.properties['what_is_the_purpose_of_todays_weed_visit']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['photos_of_weed_work'] !== null ? autolinker.link(String(feature.properties['photos_of_weed_work']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['link_to_previous_weed_visit_record'] !== null ? autolinker.link(String(feature.properties['link_to_previous_weed_visit_record']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['show_pp_priority_weeds_only'] !== null ? autolinker.link(String(feature.properties['show_pp_priority_weeds_only']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['all_target_weeds_lookup_priority_species'] !== null ? autolinker.link(String(feature.properties['all_target_weeds_lookup_priority_species']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['all_target_weeds_lookup_all_species'] !== null ? autolinker.link(String(feature.properties['all_target_weeds_lookup_all_species']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['same_weed_removal_activity'] !== null ? autolinker.link(String(feature.properties['same_weed_removal_activity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_removal_activitys_used_today_'] !== null ? autolinker.link(String(feature.properties['weed_removal_activitys_used_today_']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['more_than_one_chemical'] !== null ? autolinker.link(String(feature.properties['more_than_one_chemical']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['overall_chemical_used_plant_pests'] !== null ? autolinker.link(String(feature.properties['overall_chemical_used_plant_pests']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['species_specific_records'] !== null ? autolinker.link(String(feature.properties['species_specific_records']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['what_is_the_purpose_of_todays_reveg_visit'] !== null ? autolinker.link(String(feature.properties['what_is_the_purpose_of_todays_reveg_visit']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['photos_of_planting_site'] !== null ? autolinker.link(String(feature.properties['photos_of_planting_site']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['link_to_previous_reveg_visit_record'] !== null ? autolinker.link(String(feature.properties['link_to_previous_reveg_visit_record']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['total_number_of_plants'] !== null ? autolinker.link(String(feature.properties['total_number_of_plants']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['do_you_want_to_split_up_the_overall_revegetation_site_into_s'] !== null ? autolinker.link(String(feature.properties['do_you_want_to_split_up_the_overall_revegetation_site_into_s']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_species_records'] !== null ? autolinker.link(String(feature.properties['reveg_species_records']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_subsites_within_the_main_site'] !== null ? autolinker.link(String(feature.properties['reveg_subsites_within_the_main_site']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['would_you_like_to_mark_zones_where_plants_should_not_be_plan'] !== null ? autolinker.link(String(feature.properties['would_you_like_to_mark_zones_where_plants_should_not_be_plan']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['no_plant_zones'] !== null ? autolinker.link(String(feature.properties['no_plant_zones']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['would_you_like_to_map_any_other_zones_of_note'] !== null ? autolinker.link(String(feature.properties['would_you_like_to_map_any_other_zones_of_note']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['other_zones'] !== null ? autolinker.link(String(feature.properties['other_zones']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['individual_devices'] !== null ? autolinker.link(String(feature.properties['individual_devices']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['individual_supplements'] !== null ? autolinker.link(String(feature.properties['individual_supplements']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['is_this_a_day_or_night_survey'] !== null ? autolinker.link(String(feature.properties['is_this_a_day_or_night_survey']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['habitat_quality_points'] !== null ? autolinker.link(String(feature.properties['habitat_quality_points']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['canopy_cover_ave'] !== null ? autolinker.link(String(feature.properties['canopy_cover_ave']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_air_temperature'] !== null ? autolinker.link(String(feature.properties['starting_air_temperature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_wind_speed'] !== null ? autolinker.link(String(feature.properties['starting_wind_speed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_moon_visibility'] !== null ? autolinker.link(String(feature.properties['starting_moon_visibility']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_cloud_cover'] !== null ? autolinker.link(String(feature.properties['starting_cloud_cover']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['animals_observed'] !== null ? autolinker.link(String(feature.properties['animals_observed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['noteworthy_plants_in_flower_at_site'] !== null ? autolinker.link(String(feature.properties['noteworthy_plants_in_flower_at_site']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_air_temperture'] !== null ? autolinker.link(String(feature.properties['ending_air_temperture']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_wind_speed'] !== null ? autolinker.link(String(feature.properties['ending_wind_speed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_moon_visibility'] !== null ? autolinker.link(String(feature.properties['ending_moon_visibility']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_cloud_cover'] !== null ? autolinker.link(String(feature.properties['ending_cloud_cover']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['were_any_squirrel_gliders_detected'] !== null ? autolinker.link(String(feature.properties['were_any_squirrel_gliders_detected']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['total_volume_of_chemical_mix_used'] !== null ? autolinker.link(String(feature.properties['total_volume_of_chemical_mix_used']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['total_amount_of_fumigant_used_in_tabs'] !== null ? autolinker.link(String(feature.properties['total_amount_of_fumigant_used_in_tabs']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weather_observations_pm'] !== null ? autolinker.link(String(feature.properties['weather_observations_pm']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['end_time'] !== null ? autolinker.link(String(feature.properties['end_time']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['length_of_breaks_in_min'] !== null ? autolinker.link(String(feature.properties['length_of_breaks_in_min']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['status_of_site_after_conclusion_of_todays_works'] !== null ? autolinker.link(String(feature.properties['status_of_site_after_conclusion_of_todays_works']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['number_of_kilometers_travelled'] !== null ? autolinker.link(String(feature.properties['number_of_kilometers_travelled']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['any_other_comments'] !== null ? autolinker.link(String(feature.properties['any_other_comments']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['were_any_staff_not_present_for_the_whole_work_session'] !== null ? autolinker.link(String(feature.properties['were_any_staff_not_present_for_the_whole_work_session']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name_of_staff_1'] !== null ? autolinker.link(String(feature.properties['name_of_staff_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['hours_fewer_1'] !== null ? autolinker.link(String(feature.properties['hours_fewer_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['any_more_not_present_the_entire_session'] !== null ? autolinker.link(String(feature.properties['any_more_not_present_the_entire_session']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name_of_staff_2'] !== null ? autolinker.link(String(feature.properties['name_of_staff_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['hours_fewer_2'] !== null ? autolinker.link(String(feature.properties['hours_fewer_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['geometry_area_ha'] !== null ? autolinker.link(String(feature.properties['geometry_area_ha']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['geometry_length_km'] !== null ? autolinker.link(String(feature.properties['geometry_length_km']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['total_hours_of_work'] !== null ? autolinker.link(String(feature.properties['total_hours_of_work']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['marker-color'] !== null ? autolinker.link(String(feature.properties['marker-color']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_server_created_at'] !== null ? autolinker.link(String(feature.properties['_server_created_at']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['lead_mapper'] !== null ? autolinker.link(String(feature.properties['lead_mapper']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['lead_mapper_link'] !== null ? autolinker.link(String(feature.properties['lead_mapper_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['umbrella_project'] !== null ? autolinker.link(String(feature.properties['umbrella_project']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pp_project_link'] !== null ? autolinker.link(String(feature.properties['pp_project_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['landcare_project_link'] !== null ? autolinker.link(String(feature.properties['landcare_project_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_link'] !== null ? autolinker.link(String(feature.properties['client_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_name'] !== null ? autolinker.link(String(feature.properties['client_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_code'] !== null ? autolinker.link(String(feature.properties['client_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_site_rep'] !== null ? autolinker.link(String(feature.properties['client_site_rep']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_site_rep_phone'] !== null ? autolinker.link(String(feature.properties['client_site_rep_phone']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['site_link'] !== null ? autolinker.link(String(feature.properties['site_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weather_am'] !== null ? autolinker.link(String(feature.properties['weather_am']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff'] !== null ? autolinker.link(String(feature.properties['staff']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['roadsides'] !== null ? autolinker.link(String(feature.properties['roadsides']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['description'] !== null ? autolinker.link(String(feature.properties['description']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_activity'] !== null ? autolinker.link(String(feature.properties['pest_control_activity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_visit_type'] !== null ? autolinker.link(String(feature.properties['pest_control_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_photos'] !== null ? autolinker.link(String(feature.properties['pest_control_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_previous_link'] !== null ? autolinker.link(String(feature.properties['pest_control_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_chemical'] !== null ? autolinker.link(String(feature.properties['pest_control_chemical']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_visit_type'] !== null ? autolinker.link(String(feature.properties['weed_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_previous_link'] !== null ? autolinker.link(String(feature.properties['weed_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_photos'] !== null ? autolinker.link(String(feature.properties['weed_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_activity'] !== null ? autolinker.link(String(feature.properties['weed_activity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_chem'] !== null ? autolinker.link(String(feature.properties['weed_chem']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea'] !== null ? autolinker.link(String(feature.properties['weed_workarea']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_visit_type'] !== null ? autolinker.link(String(feature.properties['reveg_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_photos'] !== null ? autolinker.link(String(feature.properties['reveg_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_previous_link'] !== null ? autolinker.link(String(feature.properties['reveg_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_number'] !== null ? autolinker.link(String(feature.properties['reveg_number']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_plantareas'] !== null ? autolinker.link(String(feature.properties['reveg_plantareas']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_noplant_zones_map'] !== null ? autolinker.link(String(feature.properties['reveg_noplant_zones_map']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_noplant_zones'] !== null ? autolinker.link(String(feature.properties['reveg_noplant_zones']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_other_zones_map'] !== null ? autolinker.link(String(feature.properties['reveg_other_zones_map']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_other_zones'] !== null ? autolinker.link(String(feature.properties['reveg_other_zones']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['wildlife_monitoring_devices'] !== null ? autolinker.link(String(feature.properties['wildlife_monitoring_devices']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['habitat_supplement_each'] !== null ? autolinker.link(String(feature.properties['habitat_supplement_each']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['habitat_survey_points'] !== null ? autolinker.link(String(feature.properties['habitat_survey_points']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_not_present'] !== null ? autolinker.link(String(feature.properties['staff_not_present']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_name_1'] !== null ? autolinker.link(String(feature.properties['staff_movements_name_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_hours_fewer_1'] !== null ? autolinker.link(String(feature.properties['staff_movements_hours_fewer_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_more'] !== null ? autolinker.link(String(feature.properties['staff_movements_more']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_name_2'] !== null ? autolinker.link(String(feature.properties['staff_movements_name_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_hours_fewer_2'] !== null ? autolinker.link(String(feature.properties['staff_movements_hours_fewer_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['hours_total'] !== null ? autolinker.link(String(feature.properties['hours_total']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['layer'] !== null ? autolinker.link(String(feature.properties['layer']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['path'] !== null ? autolinker.link(String(feature.properties['path']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_NGSCWorkAreato26326_3_0() {
+            return {
+                pane: 'pane_NGSCWorkAreato26326_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(247,13,33,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_NGSCWorkAreato26326_3');
+        map.getPane('pane_NGSCWorkAreato26326_3').style.zIndex = 403;
+        map.getPane('pane_NGSCWorkAreato26326_3').style['mix-blend-mode'] = 'normal';
+        var layer_NGSCWorkAreato26326_3 = new L.geoJson(json_NGSCWorkAreato26326_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_NGSCWorkAreato26326_3',
+            layerName: 'layer_NGSCWorkAreato26326_3',
+            pane: 'pane_NGSCWorkAreato26326_3',
+            onEachFeature: pop_NGSCWorkAreato26326_3,
+            style: style_NGSCWorkAreato26326_3_0,
+        });
+        bounds_group.addLayer(layer_NGSCWorkAreato26326_3);
+        map.addLayer(layer_NGSCWorkAreato26326_3);
+        function pop_NGSCWeeds2632026Onwardscatagorised_4(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_child_record_id'] !== null ? autolinker.link(String(feature.properties['_child_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_id'] !== null ? autolinker.link(String(feature.properties['_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_parent_id'] !== null ? autolinker.link(String(feature.properties['_parent_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_title'] !== null ? autolinker.link(String(feature.properties['_title']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_version'] !== null ? autolinker.link(String(feature.properties['_version']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_created_at'] !== null ? autolinker.link(String(feature.properties['_created_at']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_at'] !== null ? autolinker.link(String(feature.properties['_updated_at']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_project'] !== null ? autolinker.link(String(feature.properties['_record_project']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_assigned_to'] !== null ? autolinker.link(String(feature.properties['_record_assigned_to']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_created_by'] !== null ? autolinker.link(String(feature.properties['_created_by']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_by'] !== null ? autolinker.link(String(feature.properties['_updated_by']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_index'] !== null ? autolinker.link(String(feature.properties['_index']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_latitude'] !== null ? autolinker.link(String(feature.properties['_latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_longitude'] !== null ? autolinker.link(String(feature.properties['_longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_changeset_id'] !== null ? autolinker.link(String(feature.properties['_changeset_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_created_duration'] !== null ? autolinker.link(String(feature.properties['_created_duration']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_duration'] !== null ? autolinker.link(String(feature.properties['_updated_duration']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_edited_duration'] !== null ? autolinker.link(String(feature.properties['_edited_duration']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workareas_species_link'] !== null ? autolinker.link(String(feature.properties['weed_workareas_species_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_scientific_name'] !== null ? autolinker.link(String(feature.properties['weed_workarea_scientific_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_common_name'] !== null ? autolinker.link(String(feature.properties['weed_workarea_common_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_density'] !== null ? autolinker.link(String(feature.properties['weed_workarea_density']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_treated'] !== null ? autolinker.link(String(feature.properties['weed_workarea_treated']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_specific_technique'] !== null ? autolinker.link(String(feature.properties['weed_workarea_specific_technique']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_specific_chemical'] !== null ? autolinker.link(String(feature.properties['weed_workarea_specific_chemical']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_road'] !== null ? autolinker.link(String(feature.properties['weed_workarea_road']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_roadside'] !== null ? autolinker.link(String(feature.properties['weed_workarea_roadside']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_crossstreet_a'] !== null ? autolinker.link(String(feature.properties['weed_workarea_crossstreet_a']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_crossstreet_b'] !== null ? autolinker.link(String(feature.properties['weed_workarea_crossstreet_b']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_length'] !== null ? autolinker.link(String(feature.properties['weed_workarea_length']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_width'] !== null ? autolinker.link(String(feature.properties['weed_workarea_width']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_area'] !== null ? autolinker.link(String(feature.properties['weed_workarea_area']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['marker-color'] !== null ? autolinker.link(String(feature.properties['marker-color']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_NGSCWeeds2632026Onwardscatagorised_4_0(feature) {
+            switch(String(feature.properties['weed_workarea_density'])) {
+                default:
+                    return {
+                pane: 'pane_NGSCWeeds2632026Onwardscatagorised_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_NGSCWeeds2632026Onwardscatagorised_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 10% and 30% of ground cover':
+                    return {
+                pane: 'pane_NGSCWeeds2632026Onwardscatagorised_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,207,211,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 30 and 60% of ground cover':
+                    return {
+                pane: 'pane_NGSCWeeds2632026Onwardscatagorised_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,142,152,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 60 and 90% of ground cover':
+                    return {
+                pane: 'pane_NGSCWeeds2632026Onwardscatagorised_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,93,106,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Monoculture':
+                    return {
+                pane: 'pane_NGSCWeeds2632026Onwardscatagorised_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,0,22,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sparse individual plants':
+                    return {
+                pane: 'pane_NGSCWeeds2632026Onwardscatagorised_4',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_NGSCWeeds2632026Onwardscatagorised_4');
+        map.getPane('pane_NGSCWeeds2632026Onwardscatagorised_4').style.zIndex = 404;
+        map.getPane('pane_NGSCWeeds2632026Onwardscatagorised_4').style['mix-blend-mode'] = 'normal';
+        var layer_NGSCWeeds2632026Onwardscatagorised_4 = new L.geoJson(json_NGSCWeeds2632026Onwardscatagorised_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_NGSCWeeds2632026Onwardscatagorised_4',
+            layerName: 'layer_NGSCWeeds2632026Onwardscatagorised_4',
+            pane: 'pane_NGSCWeeds2632026Onwardscatagorised_4',
+            onEachFeature: pop_NGSCWeeds2632026Onwardscatagorised_4,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_NGSCWeeds2632026Onwardscatagorised_4_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_NGSCWeeds2632026Onwardscatagorised_4);
+        map.addLayer(layer_NGSCWeeds2632026Onwardscatagorised_4);
+        function pop_NGSCWorkArea2632026Onwards_5(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_id'] !== null ? autolinker.link(String(feature.properties['_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_title'] !== null ? autolinker.link(String(feature.properties['_title']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_server_updated_at'] !== null ? autolinker.link(String(feature.properties['_server_updated_at']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_by'] !== null ? autolinker.link(String(feature.properties['_updated_by']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_latitude'] !== null ? autolinker.link(String(feature.properties['_latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_longitude'] !== null ? autolinker.link(String(feature.properties['_longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['lead_mapper'] !== null ? autolinker.link(String(feature.properties['lead_mapper']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['lead_mapper_link'] !== null ? autolinker.link(String(feature.properties['lead_mapper_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['date'] !== null ? autolinker.link(String(feature.properties['date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['umbrella_project'] !== null ? autolinker.link(String(feature.properties['umbrella_project']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pp_project_link'] !== null ? autolinker.link(String(feature.properties['pp_project_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['landcare_project_link'] !== null ? autolinker.link(String(feature.properties['landcare_project_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['linked_project_name'] !== null ? autolinker.link(String(feature.properties['linked_project_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['linked_project_code'] !== null ? autolinker.link(String(feature.properties['linked_project_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_link'] !== null ? autolinker.link(String(feature.properties['client_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_name'] !== null ? autolinker.link(String(feature.properties['client_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_code'] !== null ? autolinker.link(String(feature.properties['client_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_main_contact'] !== null ? autolinker.link(String(feature.properties['client_main_contact']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_main_contact_phone'] !== null ? autolinker.link(String(feature.properties['client_main_contact_phone']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_site_rep'] !== null ? autolinker.link(String(feature.properties['client_site_rep']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_site_rep_phone'] !== null ? autolinker.link(String(feature.properties['client_site_rep_phone']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['site_link'] !== null ? autolinker.link(String(feature.properties['site_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['site_name'] !== null ? autolinker.link(String(feature.properties['site_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weather_am'] !== null ? autolinker.link(String(feature.properties['weather_am']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['start_time'] !== null ? autolinker.link(String(feature.properties['start_time']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff'] !== null ? autolinker.link(String(feature.properties['staff']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['activity_type'] !== null ? autolinker.link(String(feature.properties['activity_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['roadsides'] !== null ? autolinker.link(String(feature.properties['roadsides']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['description'] !== null ? autolinker.link(String(feature.properties['description']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['have_you_completed_a_swms'] !== null ? autolinker.link(String(feature.properties['have_you_completed_a_swms']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['swms_additions'] !== null ? autolinker.link(String(feature.properties['swms_additions']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_activity'] !== null ? autolinker.link(String(feature.properties['pest_control_activity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_visit_type'] !== null ? autolinker.link(String(feature.properties['pest_control_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_photos'] !== null ? autolinker.link(String(feature.properties['pest_control_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_previous_link'] !== null ? autolinker.link(String(feature.properties['pest_control_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_chemical'] !== null ? autolinker.link(String(feature.properties['pest_control_chemical']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['rabbit_site_feature'] !== null ? autolinker.link(String(feature.properties['rabbit_site_feature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_visit_type'] !== null ? autolinker.link(String(feature.properties['weed_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_previous_link'] !== null ? autolinker.link(String(feature.properties['weed_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_photos'] !== null ? autolinker.link(String(feature.properties['weed_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_activity'] !== null ? autolinker.link(String(feature.properties['weed_activity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_chem'] !== null ? autolinker.link(String(feature.properties['weed_chem']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea'] !== null ? autolinker.link(String(feature.properties['weed_workarea']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_visit_type'] !== null ? autolinker.link(String(feature.properties['reveg_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_photos'] !== null ? autolinker.link(String(feature.properties['reveg_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_previous_link'] !== null ? autolinker.link(String(feature.properties['reveg_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_number'] !== null ? autolinker.link(String(feature.properties['reveg_number']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_plantareas'] !== null ? autolinker.link(String(feature.properties['reveg_plantareas']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_noplant_zones_map'] !== null ? autolinker.link(String(feature.properties['reveg_noplant_zones_map']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_noplant_zones'] !== null ? autolinker.link(String(feature.properties['reveg_noplant_zones']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_other_zones_map'] !== null ? autolinker.link(String(feature.properties['reveg_other_zones_map']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_other_zones'] !== null ? autolinker.link(String(feature.properties['reveg_other_zones']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['wildlife_monitoring_devices'] !== null ? autolinker.link(String(feature.properties['wildlife_monitoring_devices']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['habitat_supplement_each'] !== null ? autolinker.link(String(feature.properties['habitat_supplement_each']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['is_this_a_day_or_night_survey'] !== null ? autolinker.link(String(feature.properties['is_this_a_day_or_night_survey']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_air_temperature'] !== null ? autolinker.link(String(feature.properties['starting_air_temperature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_wind_speed'] !== null ? autolinker.link(String(feature.properties['starting_wind_speed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_moon_visibility'] !== null ? autolinker.link(String(feature.properties['starting_moon_visibility']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_cloud_cover'] !== null ? autolinker.link(String(feature.properties['starting_cloud_cover']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['animals_observed'] !== null ? autolinker.link(String(feature.properties['animals_observed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['noteworthy_plants_in_flower_at_site'] !== null ? autolinker.link(String(feature.properties['noteworthy_plants_in_flower_at_site']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_air_temperture'] !== null ? autolinker.link(String(feature.properties['ending_air_temperture']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_wind_speed'] !== null ? autolinker.link(String(feature.properties['ending_wind_speed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_moon_visibility'] !== null ? autolinker.link(String(feature.properties['ending_moon_visibility']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_cloud_cover'] !== null ? autolinker.link(String(feature.properties['ending_cloud_cover']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['were_any_squirrel_gliders_detected'] !== null ? autolinker.link(String(feature.properties['were_any_squirrel_gliders_detected']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['habitat_survey_points'] !== null ? autolinker.link(String(feature.properties['habitat_survey_points']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['total_volume_of_chemical_mix_used'] !== null ? autolinker.link(String(feature.properties['total_volume_of_chemical_mix_used']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['total_amount_of_fumigant_used_in_tabs'] !== null ? autolinker.link(String(feature.properties['total_amount_of_fumigant_used_in_tabs']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weather_observations_pm'] !== null ? autolinker.link(String(feature.properties['weather_observations_pm']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['end_time'] !== null ? autolinker.link(String(feature.properties['end_time']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['length_of_breaks_in_min'] !== null ? autolinker.link(String(feature.properties['length_of_breaks_in_min']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['status_of_site_after_conclusion_of_todays_works'] !== null ? autolinker.link(String(feature.properties['status_of_site_after_conclusion_of_todays_works']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['number_of_kilometers_travelled'] !== null ? autolinker.link(String(feature.properties['number_of_kilometers_travelled']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['any_other_comments'] !== null ? autolinker.link(String(feature.properties['any_other_comments']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_not_present'] !== null ? autolinker.link(String(feature.properties['staff_not_present']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_name_1'] !== null ? autolinker.link(String(feature.properties['staff_movements_name_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_hours_fewer_1'] !== null ? autolinker.link(String(feature.properties['staff_movements_hours_fewer_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_more'] !== null ? autolinker.link(String(feature.properties['staff_movements_more']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_name_2'] !== null ? autolinker.link(String(feature.properties['staff_movements_name_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_hours_fewer_2'] !== null ? autolinker.link(String(feature.properties['staff_movements_hours_fewer_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['hours_total'] !== null ? autolinker.link(String(feature.properties['hours_total']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['marker-color'] !== null ? autolinker.link(String(feature.properties['marker-color']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_NGSCWorkArea2632026Onwards_5_0() {
+            return {
+                pane: 'pane_NGSCWorkArea2632026Onwards_5',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(228,26,28,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_NGSCWorkArea2632026Onwards_5');
+        map.getPane('pane_NGSCWorkArea2632026Onwards_5').style.zIndex = 405;
+        map.getPane('pane_NGSCWorkArea2632026Onwards_5').style['mix-blend-mode'] = 'normal';
+        var layer_NGSCWorkArea2632026Onwards_5 = new L.geoJson(json_NGSCWorkArea2632026Onwards_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_NGSCWorkArea2632026Onwards_5',
+            layerName: 'layer_NGSCWorkArea2632026Onwards_5',
+            pane: 'pane_NGSCWorkArea2632026Onwards_5',
+            onEachFeature: pop_NGSCWorkArea2632026Onwards_5,
+            style: style_NGSCWorkArea2632026Onwards_5_0,
+        });
+        bounds_group.addLayer(layer_NGSCWorkArea2632026Onwards_5);
+        map.addLayer(layer_NGSCWorkArea2632026Onwards_5);
+        function pop_ARCCRWPP2526WorkArea_6(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_id'] !== null ? autolinker.link(String(feature.properties['_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_title'] !== null ? autolinker.link(String(feature.properties['_title']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_server_updated_at'] !== null ? autolinker.link(String(feature.properties['_server_updated_at']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_by'] !== null ? autolinker.link(String(feature.properties['_updated_by']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_latitude'] !== null ? autolinker.link(String(feature.properties['_latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_longitude'] !== null ? autolinker.link(String(feature.properties['_longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['lead_mapper'] !== null ? autolinker.link(String(feature.properties['lead_mapper']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['lead_mapper_link'] !== null ? autolinker.link(String(feature.properties['lead_mapper_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['date'] !== null ? autolinker.link(String(feature.properties['date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['umbrella_project'] !== null ? autolinker.link(String(feature.properties['umbrella_project']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pp_project_link'] !== null ? autolinker.link(String(feature.properties['pp_project_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['landcare_project_link'] !== null ? autolinker.link(String(feature.properties['landcare_project_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['linked_project_name'] !== null ? autolinker.link(String(feature.properties['linked_project_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['linked_project_code'] !== null ? autolinker.link(String(feature.properties['linked_project_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_link'] !== null ? autolinker.link(String(feature.properties['client_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_name'] !== null ? autolinker.link(String(feature.properties['client_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_code'] !== null ? autolinker.link(String(feature.properties['client_code']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_main_contact'] !== null ? autolinker.link(String(feature.properties['client_main_contact']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_main_contact_phone'] !== null ? autolinker.link(String(feature.properties['client_main_contact_phone']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_site_rep'] !== null ? autolinker.link(String(feature.properties['client_site_rep']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['client_site_rep_phone'] !== null ? autolinker.link(String(feature.properties['client_site_rep_phone']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['site_link'] !== null ? autolinker.link(String(feature.properties['site_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['site_name'] !== null ? autolinker.link(String(feature.properties['site_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weather_am'] !== null ? autolinker.link(String(feature.properties['weather_am']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['start_time'] !== null ? autolinker.link(String(feature.properties['start_time']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff'] !== null ? autolinker.link(String(feature.properties['staff']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['activity_type'] !== null ? autolinker.link(String(feature.properties['activity_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['roadsides'] !== null ? autolinker.link(String(feature.properties['roadsides']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['description'] !== null ? autolinker.link(String(feature.properties['description']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['have_you_completed_a_swms'] !== null ? autolinker.link(String(feature.properties['have_you_completed_a_swms']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['swms_additions'] !== null ? autolinker.link(String(feature.properties['swms_additions']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_activity'] !== null ? autolinker.link(String(feature.properties['pest_control_activity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_visit_type'] !== null ? autolinker.link(String(feature.properties['pest_control_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_photos'] !== null ? autolinker.link(String(feature.properties['pest_control_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_previous_link'] !== null ? autolinker.link(String(feature.properties['pest_control_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['pest_control_chemical'] !== null ? autolinker.link(String(feature.properties['pest_control_chemical']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['rabbit_site_feature'] !== null ? autolinker.link(String(feature.properties['rabbit_site_feature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_visit_type'] !== null ? autolinker.link(String(feature.properties['weed_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_previous_link'] !== null ? autolinker.link(String(feature.properties['weed_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_photos'] !== null ? autolinker.link(String(feature.properties['weed_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_activity'] !== null ? autolinker.link(String(feature.properties['weed_activity']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_chem'] !== null ? autolinker.link(String(feature.properties['weed_chem']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea'] !== null ? autolinker.link(String(feature.properties['weed_workarea']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_visit_type'] !== null ? autolinker.link(String(feature.properties['reveg_visit_type']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_photos'] !== null ? autolinker.link(String(feature.properties['reveg_photos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_previous_link'] !== null ? autolinker.link(String(feature.properties['reveg_previous_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_number'] !== null ? autolinker.link(String(feature.properties['reveg_number']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_plantareas'] !== null ? autolinker.link(String(feature.properties['reveg_plantareas']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_noplant_zones_map'] !== null ? autolinker.link(String(feature.properties['reveg_noplant_zones_map']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_noplant_zones'] !== null ? autolinker.link(String(feature.properties['reveg_noplant_zones']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_other_zones_map'] !== null ? autolinker.link(String(feature.properties['reveg_other_zones_map']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['reveg_other_zones'] !== null ? autolinker.link(String(feature.properties['reveg_other_zones']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['wildlife_monitoring_devices'] !== null ? autolinker.link(String(feature.properties['wildlife_monitoring_devices']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['habitat_supplement_each'] !== null ? autolinker.link(String(feature.properties['habitat_supplement_each']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['is_this_a_day_or_night_survey'] !== null ? autolinker.link(String(feature.properties['is_this_a_day_or_night_survey']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_air_temperature'] !== null ? autolinker.link(String(feature.properties['starting_air_temperature']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_wind_speed'] !== null ? autolinker.link(String(feature.properties['starting_wind_speed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_moon_visibility'] !== null ? autolinker.link(String(feature.properties['starting_moon_visibility']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['starting_cloud_cover'] !== null ? autolinker.link(String(feature.properties['starting_cloud_cover']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['animals_observed'] !== null ? autolinker.link(String(feature.properties['animals_observed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['noteworthy_plants_in_flower_at_site'] !== null ? autolinker.link(String(feature.properties['noteworthy_plants_in_flower_at_site']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_air_temperture'] !== null ? autolinker.link(String(feature.properties['ending_air_temperture']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_wind_speed'] !== null ? autolinker.link(String(feature.properties['ending_wind_speed']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_moon_visibility'] !== null ? autolinker.link(String(feature.properties['ending_moon_visibility']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['ending_cloud_cover'] !== null ? autolinker.link(String(feature.properties['ending_cloud_cover']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['were_any_squirrel_gliders_detected'] !== null ? autolinker.link(String(feature.properties['were_any_squirrel_gliders_detected']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['habitat_survey_points'] !== null ? autolinker.link(String(feature.properties['habitat_survey_points']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['total_volume_of_chemical_mix_used'] !== null ? autolinker.link(String(feature.properties['total_volume_of_chemical_mix_used']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['total_amount_of_fumigant_used_in_tabs'] !== null ? autolinker.link(String(feature.properties['total_amount_of_fumigant_used_in_tabs']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weather_observations_pm'] !== null ? autolinker.link(String(feature.properties['weather_observations_pm']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['end_time'] !== null ? autolinker.link(String(feature.properties['end_time']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['length_of_breaks_in_min'] !== null ? autolinker.link(String(feature.properties['length_of_breaks_in_min']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['status_of_site_after_conclusion_of_todays_works'] !== null ? autolinker.link(String(feature.properties['status_of_site_after_conclusion_of_todays_works']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['number_of_kilometers_travelled'] !== null ? autolinker.link(String(feature.properties['number_of_kilometers_travelled']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['any_other_comments'] !== null ? autolinker.link(String(feature.properties['any_other_comments']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_not_present'] !== null ? autolinker.link(String(feature.properties['staff_not_present']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_name_1'] !== null ? autolinker.link(String(feature.properties['staff_movements_name_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_hours_fewer_1'] !== null ? autolinker.link(String(feature.properties['staff_movements_hours_fewer_1']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_more'] !== null ? autolinker.link(String(feature.properties['staff_movements_more']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_name_2'] !== null ? autolinker.link(String(feature.properties['staff_movements_name_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['staff_movements_hours_fewer_2'] !== null ? autolinker.link(String(feature.properties['staff_movements_hours_fewer_2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['hours_total'] !== null ? autolinker.link(String(feature.properties['hours_total']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['marker-color'] !== null ? autolinker.link(String(feature.properties['marker-color']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ARCCRWPP2526WorkArea_6_0() {
+            return {
+                pane: 'pane_ARCCRWPP2526WorkArea_6',
+                opacity: 1,
+                color: 'rgba(128,14,16,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(228,26,28,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_ARCCRWPP2526WorkArea_6');
+        map.getPane('pane_ARCCRWPP2526WorkArea_6').style.zIndex = 406;
+        map.getPane('pane_ARCCRWPP2526WorkArea_6').style['mix-blend-mode'] = 'normal';
+        var layer_ARCCRWPP2526WorkArea_6 = new L.geoJson(json_ARCCRWPP2526WorkArea_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ARCCRWPP2526WorkArea_6',
+            layerName: 'layer_ARCCRWPP2526WorkArea_6',
+            pane: 'pane_ARCCRWPP2526WorkArea_6',
+            onEachFeature: pop_ARCCRWPP2526WorkArea_6,
+            style: style_ARCCRWPP2526WorkArea_6_0,
+        });
+        bounds_group.addLayer(layer_ARCCRWPP2526WorkArea_6);
+        map.addLayer(layer_ARCCRWPP2526WorkArea_6);
+        function pop_ARCCRWPP2526WeedData_7(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    if (typeof layer.closePopup == 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function(feature){
+                            feature.closePopup()
+                        });
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_child_record_id'] !== null ? autolinker.link(String(feature.properties['_child_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_id'] !== null ? autolinker.link(String(feature.properties['_record_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_parent_id'] !== null ? autolinker.link(String(feature.properties['_parent_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_title'] !== null ? autolinker.link(String(feature.properties['_title']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_version'] !== null ? autolinker.link(String(feature.properties['_version']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_created_at'] !== null ? autolinker.link(String(feature.properties['_created_at']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_at'] !== null ? autolinker.link(String(feature.properties['_updated_at']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_project'] !== null ? autolinker.link(String(feature.properties['_record_project']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_record_assigned_to'] !== null ? autolinker.link(String(feature.properties['_record_assigned_to']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_created_by'] !== null ? autolinker.link(String(feature.properties['_created_by']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_by'] !== null ? autolinker.link(String(feature.properties['_updated_by']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_index'] !== null ? autolinker.link(String(feature.properties['_index']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_latitude'] !== null ? autolinker.link(String(feature.properties['_latitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_longitude'] !== null ? autolinker.link(String(feature.properties['_longitude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_changeset_id'] !== null ? autolinker.link(String(feature.properties['_changeset_id']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_created_duration'] !== null ? autolinker.link(String(feature.properties['_created_duration']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_updated_duration'] !== null ? autolinker.link(String(feature.properties['_updated_duration']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['_edited_duration'] !== null ? autolinker.link(String(feature.properties['_edited_duration']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workareas_species_link'] !== null ? autolinker.link(String(feature.properties['weed_workareas_species_link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_scientific_name'] !== null ? autolinker.link(String(feature.properties['weed_workarea_scientific_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_common_name'] !== null ? autolinker.link(String(feature.properties['weed_workarea_common_name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_density'] !== null ? autolinker.link(String(feature.properties['weed_workarea_density']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_treated'] !== null ? autolinker.link(String(feature.properties['weed_workarea_treated']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_specific_technique'] !== null ? autolinker.link(String(feature.properties['weed_workarea_specific_technique']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_specific_chemical'] !== null ? autolinker.link(String(feature.properties['weed_workarea_specific_chemical']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_road'] !== null ? autolinker.link(String(feature.properties['weed_workarea_road']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_roadside'] !== null ? autolinker.link(String(feature.properties['weed_workarea_roadside']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_crossstreet_a'] !== null ? autolinker.link(String(feature.properties['weed_workarea_crossstreet_a']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_crossstreet_b'] !== null ? autolinker.link(String(feature.properties['weed_workarea_crossstreet_b']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_length'] !== null ? autolinker.link(String(feature.properties['weed_workarea_length']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_width'] !== null ? autolinker.link(String(feature.properties['weed_workarea_width']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['weed_workarea_area'] !== null ? autolinker.link(String(feature.properties['weed_workarea_area']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['marker-color'] !== null ? autolinker.link(String(feature.properties['marker-color']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ARCCRWPP2526WeedData_7_0(feature) {
+            switch(String(feature.properties['weed_workarea_density'])) {
+                default:
+                    return {
+                pane: 'pane_ARCCRWPP2526WeedData_7',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                default:
+                    return {
+                pane: 'pane_ARCCRWPP2526WeedData_7',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 10% and 30% of ground cover':
+                    return {
+                pane: 'pane_ARCCRWPP2526WeedData_7',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,207,211,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 30 and 60% of ground cover':
+                    return {
+                pane: 'pane_ARCCRWPP2526WeedData_7',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,142,152,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Between 60 and 90% of ground cover':
+                    return {
+                pane: 'pane_ARCCRWPP2526WeedData_7',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,93,106,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Monoculture':
+                    return {
+                pane: 'pane_ARCCRWPP2526WeedData_7',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,0,22,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'Sparse individual plants':
+                    return {
+                pane: 'pane_ARCCRWPP2526WeedData_7',
+                radius: 4.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,255,255,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_ARCCRWPP2526WeedData_7');
+        map.getPane('pane_ARCCRWPP2526WeedData_7').style.zIndex = 407;
+        map.getPane('pane_ARCCRWPP2526WeedData_7').style['mix-blend-mode'] = 'normal';
+        var layer_ARCCRWPP2526WeedData_7 = new L.geoJson(json_ARCCRWPP2526WeedData_7, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ARCCRWPP2526WeedData_7',
+            layerName: 'layer_ARCCRWPP2526WeedData_7',
+            pane: 'pane_ARCCRWPP2526WeedData_7',
+            onEachFeature: pop_ARCCRWPP2526WeedData_7,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_ARCCRWPP2526WeedData_7_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_ARCCRWPP2526WeedData_7);
+        map.addLayer(layer_ARCCRWPP2526WeedData_7);
+        var overlaysTree = [
+            {label: 'ARCC RWPP 25-26 Weed Data<br /><table><tr><td style="text-align: center;"><img src="legend/ARCCRWPP2526WeedData_7_0.png" /></td><td></td></tr><tr><td style="text-align: center;"><img src="legend/ARCCRWPP2526WeedData_7_1.png" /></td><td></td></tr><tr><td style="text-align: center;"><img src="legend/ARCCRWPP2526WeedData_7_Between10and30ofgroundcover2.png" /></td><td>Between 10% and 30% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/ARCCRWPP2526WeedData_7_Between30and60ofgroundcover3.png" /></td><td>Between 30 and 60% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/ARCCRWPP2526WeedData_7_Between60and90ofgroundcover4.png" /></td><td>Between 60 and 90% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/ARCCRWPP2526WeedData_7_Monoculture5.png" /></td><td>Monoculture</td></tr><tr><td style="text-align: center;"><img src="legend/ARCCRWPP2526WeedData_7_Sparseindividualplants6.png" /></td><td>Sparse individual plants</td></tr></table>', layer: layer_ARCCRWPP2526WeedData_7},
+            {label: '<img src="legend/ARCCRWPP2526WorkArea_6.png" /> ARCC RWPP 25-26 Work Area', layer: layer_ARCCRWPP2526WorkArea_6},
+            {label: '<img src="legend/NGSCWorkArea2632026Onwards_5.png" /> NGSC Work Area 26-3-2026 Onwards', layer: layer_NGSCWorkArea2632026Onwards_5},
+            {label: 'NGSC Weeds 26-3-2026 Onwards catagorised<br /><table><tr><td style="text-align: center;"><img src="legend/NGSCWeeds2632026Onwardscatagorised_4_0.png" /></td><td></td></tr><tr><td style="text-align: center;"><img src="legend/NGSCWeeds2632026Onwardscatagorised_4_1.png" /></td><td></td></tr><tr><td style="text-align: center;"><img src="legend/NGSCWeeds2632026Onwardscatagorised_4_Between10and30ofgroundcover2.png" /></td><td>Between 10% and 30% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/NGSCWeeds2632026Onwardscatagorised_4_Between30and60ofgroundcover3.png" /></td><td>Between 30 and 60% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/NGSCWeeds2632026Onwardscatagorised_4_Between60and90ofgroundcover4.png" /></td><td>Between 60 and 90% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/NGSCWeeds2632026Onwardscatagorised_4_Monoculture5.png" /></td><td>Monoculture</td></tr><tr><td style="text-align: center;"><img src="legend/NGSCWeeds2632026Onwardscatagorised_4_Sparseindividualplants6.png" /></td><td>Sparse individual plants</td></tr></table>', layer: layer_NGSCWeeds2632026Onwardscatagorised_4},
+            {label: '<img src="legend/NGSCWorkAreato26326_3.png" /> NGSC Work Area to 26-3-26', layer: layer_NGSCWorkAreato26326_3},
+            {label: 'NGSC Catagorised Weeds to 26-3-26<br /><table><tr><td style="text-align: center;"><img src="legend/NGSCCatagorisedWeedsto26326_2_0.png" /></td><td></td></tr><tr><td style="text-align: center;"><img src="legend/NGSCCatagorisedWeedsto26326_2_1.png" /></td><td></td></tr><tr><td style="text-align: center;"><img src="legend/NGSCCatagorisedWeedsto26326_2_Between10and30ofgroundcover2.png" /></td><td>Between 10% and 30% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/NGSCCatagorisedWeedsto26326_2_Between30and60ofgroundcover3.png" /></td><td>Between 30 and 60% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/NGSCCatagorisedWeedsto26326_2_Between60and90ofgroundcover4.png" /></td><td>Between 60 and 90% of ground cover</td></tr><tr><td style="text-align: center;"><img src="legend/NGSCCatagorisedWeedsto26326_2_Monoculture5.png" /></td><td>Monoculture</td></tr><tr><td style="text-align: center;"><img src="legend/NGSCCatagorisedWeedsto26326_2_Sparseindividualplants6.png" /></td><td>Sparse individual plants</td></tr></table>', layer: layer_NGSCCatagorisedWeedsto26326_2},
+            {label: '<img src="legend/opendataplatformad_lga_area_polygon_1.png" /> open-data-platform:ad_lga_area_polygon', layer: layer_opendataplatformad_lga_area_polygon_1},
+            {label: "Google Satellite Hybrid", layer: layer_GoogleSatelliteHybrid_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: false, 
+        });
+        lay.addTo(map);
+		document.addEventListener("DOMContentLoaded", function() {
+            // set new Layers List height which considers toggle icon
+            function newLayersListHeight() {
+                var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (layerScrollbarElement) {
+                    var layersListElement = document.querySelector('.leaflet-control-layers-list');
+                    var originalHeight = layersListElement.style.height 
+                        || window.getComputedStyle(layersListElement).height;
+                    var newHeight = parseFloat(originalHeight) - 50;
+                    layersListElement.style.height = newHeight + 'px';
+                }
+            }
+            var isLayersListExpanded = true;
+            var controlLayersElement = document.querySelector('.leaflet-control-layers');
+            var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+            // toggle Collapsed/Expanded and apply new Layers List height
+            toggleLayerControl.addEventListener('click', function() {
+                if (isLayersListExpanded) {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlLayersElement.classList.add('leaflet-control-layers-expanded');
+                }
+                isLayersListExpanded = !isLayersListExpanded;
+                newLayersListHeight()
+            });	
+			// apply new Layers List height if toggle layerstree
+			if (controlLayersElement) {
+				controlLayersElement.addEventListener('click', function(event) {
+					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+					if (toggleLayerHeaderPointer) {
+						newLayersListHeight();
+					}
+				});
+			}
+            // Collapsed/Expanded at Start to apply new height
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            // Collapsed touch/small screen
+            var isSmallScreen = window.innerWidth < 650;
+            if (isSmallScreen) {
+                setTimeout(function() {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                    isLayersListExpanded = !isLayersListExpanded;
+                }, 500);
+            }  
+        });       
+        </script>
+        <script src='https://opendata.maps.vic.gov.au/geoserver/ows?SERVICE=WFS&VERSION=1.0.0&REQUEST=GetFeature&TYPENAME=open-data-platform:ad_lga_area_polygon&SRSNAME=EPSG:4326&outputFormat=text%2Fjavascript&format_options=callback%3Agetopendataplatformad_lga_area_polygon_1Json'></script>        
+    </body>
+</html>
